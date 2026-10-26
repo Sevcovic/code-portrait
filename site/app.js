@@ -451,6 +451,111 @@ function setupShare() {
   } catch {}
 }
 
+/* ---------- MP4 video of the animation ---------- */
+function storyLayout(cells, W, H) {
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [cx, cy] of cells) { x0 = Math.min(x0, cx); x1 = Math.max(x1, cx); y0 = Math.min(y0, cy); y1 = Math.max(y1, cy); }
+  const COLS = x1 - x0 + 1, ROWS = y1 - y0 + 1;
+  const unit = Math.min(940 / COLS, 1250 / (ROWS * ASPECT));
+  const w = COLS * unit, h = ROWS * unit * ASPECT;
+  return { unit, ox: (W - w) / 2 - x0 * unit, oy: 300 + (1250 - h) / 2 - y0 * unit * ASPECT, x0, x1, y0, y1 };
+}
+function seeded(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// Builds a deterministic version of the on-screen animation and returns drawFrame(ctx, ms).
+function videoScene(W, H) {
+  const col = COLORS[state.theme], rows = state.grid.rows, S = state.chars || SET;
+  const cells = finalCells(), L = storyLayout(cells, W, H), R = seeded(7);
+  const spanX = L.x1 - L.x0 + 1, spanY = L.y1 - L.y0 + 1, cx0 = (L.x0 + L.x1) / 2, cy0 = (L.y0 + L.y1) / 2;
+  const from = () => { const a = R() * Math.PI * 2, r = 0.15 + R() * 0.75; return [cx0 + Math.cos(a) * spanX * r, cy0 + Math.sin(a) * spanY * r]; };
+  const base = [], acc = [];
+  rows.forEach((row, y) => [...row].forEach((c, x) => { if (c === ' ') return; const [sx, sy] = from(); base.push({ x, y, c, sx, sy, start: 200 + ((y - L.y0) / spanY) * 900 + R() * 600, dur: 1100 + R() * 700, seed: (R() * 1e6) | 0 }); }));
+  cellsCache.forEach(([x, y, c]) => { const [sx, sy] = from(); acc.push({ x, y, c, sx, sy, start: 2600 + R() * 400, dur: 700 + R() * 400, seed: (R() * 1e6) | 0 }); });
+  const end = Math.max(...base.map(p => p.start + p.dur), ...acc.map(p => p.start + p.dur), 0);
+  const ease = k => 1 - Math.pow(1 - k, 3);
+  const scr = (p, t) => S[(p.seed + Math.floor(t / 90)) % S.length];
+  const px = (x, y) => [L.ox + (x + 0.5) * L.unit, L.oy + (y + 0.5) * L.unit * ASPECT];
+  function draw(x, t) {
+    x.globalAlpha = 1; x.fillStyle = col.bg; x.fillRect(0, 0, W, H);
+    x.textAlign = 'center'; x.textBaseline = 'middle';
+    const hidden = new Set(acc.filter(p => t >= p.start + p.dur).map(p => p.x + ',' + p.y));
+    x.font = font(L.unit * 1.6, false);
+    for (const p of base) {
+      const k = Math.min(1, Math.max(0, (t - p.start) / p.dur)); if (k <= 0) continue;
+      if (k >= 1 && hidden.has(p.x + ',' + p.y)) continue;
+      const e = ease(k), [X, Y] = px(p.sx + (p.x - p.sx) * e, p.sy + (p.y - p.sy) * e);
+      x.globalAlpha = 0.2 + 0.8 * e; x.fillStyle = k >= 1 ? col.fg : (p.c === '.' ? col.muted : col.accent);
+      x.fillText(k < 0.9 ? scr(p, t) : p.c, X, Y);
+    }
+    x.font = font(L.unit * 1.6, true); x.fillStyle = col.accent;
+    for (const p of acc) {
+      const k = Math.min(1, Math.max(0, (t - p.start) / p.dur)); if (k <= 0) continue;
+      const e = ease(k), [X, Y] = px(p.sx + (p.x - p.sx) * e, p.sy + (p.y - p.sy) * e);
+      x.globalAlpha = 0.2 + 0.8 * e; x.fillText(k < 0.85 ? scr(p, t) : p.c, X, Y);
+    }
+    x.globalAlpha = 1; x.fillStyle = col.accent; x.beginPath(); x.arc(W / 2, 1660, 9, 0, Math.PI * 2); x.fill();
+    x.fillStyle = col.muted; x.font = '500 30px Inter, -apple-system, "Helvetica Neue", Arial, sans-serif';
+    x.fillText('code-portrait.sevcovicp.workers.dev', W / 2, 1712);
+  }
+  return { draw, duration: end + 1800 };
+}
+
+async function renderVideo(onProgress) {
+  const W = 1080, H = 1920, FPS = 30, scene = videoScene(W, H), frames = Math.ceil(scene.duration / 1000 * FPS);
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  // Preferred: WebCodecs + MP4 muxer (renders frame by frame, works offline, real .mp4)
+  if ('VideoEncoder' in window) {
+    let config = null;
+    for (const codec of ['avc1.640028', 'avc1.4d0028', 'avc1.42003e']) {
+      const cfg = { codec, width: W, height: H, bitrate: 8_000_000, framerate: FPS };
+      try { if ((await VideoEncoder.isConfigSupported(cfg)).supported) { config = cfg; break; } } catch {}
+    }
+    if (config) {
+      const { Muxer, ArrayBufferTarget } = await import('./lib/mp4-muxer.mjs');
+      const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: 'avc', width: W, height: H, frameRate: FPS }, fastStart: 'in-memory' });
+      let failed = null;
+      const enc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: e => { failed = e; } });
+      enc.configure(config);
+      for (let i = 0; i < frames; i++) {
+        if (failed) throw failed;
+        scene.draw(x, i * 1000 / FPS);
+        const vf = new VideoFrame(c, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
+        enc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close();
+        if (enc.encodeQueueSize > 8) await new Promise(r => setTimeout(r, 0));
+        if (i % 10 === 0) { onProgress(i / frames); await new Promise(r => setTimeout(r, 0)); }
+      }
+      await enc.flush(); muxer.finalize();
+      return { blob: new Blob([muxer.target.buffer], { type: 'video/mp4' }), ext: 'mp4' };
+    }
+  }
+  // Fallback: record the canvas in real time
+  const mime = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+  if (!mime) throw new Error('no-video');
+  const stream = c.captureStream(FPS), rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 }), parts = [];
+  rec.ondataavailable = e => e.data.size && parts.push(e.data);
+  const done = new Promise(r => (rec.onstop = r));
+  scene.draw(x, 0); rec.start();
+  const t0 = performance.now();
+  await new Promise(resolve => { const tick = () => { const t = performance.now() - t0; scene.draw(x, t); onProgress(Math.min(1, t / scene.duration)); if (t < scene.duration) requestAnimationFrame(tick); else resolve(); }; requestAnimationFrame(tick); });
+  rec.stop(); await done;
+  return { blob: new Blob(parts, { type: mime.split(';')[0] }), ext: mime.includes('mp4') ? 'mp4' : 'webm' };
+}
+
+let rendering = false;
+async function exportVideo() {
+  if (rendering || !state.grid) return;
+  rendering = true; const btn = $('mp4'), label = btn.textContent; btn.disabled = true;
+  try {
+    const { blob, ext } = await renderVideo(p => { btn.textContent = `Rendering ${Math.round(p * 100)}%`; });
+    const file = new File([blob], 'code-portrait.' + ext, { type: blob.type });
+    if (!$('share').hidden && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); } catch (e) { if (e.name !== 'AbortError') save(blob, file.name); }
+    } else save(blob, file.name);
+    if (ext !== 'mp4') toast('Your browser can only make a .webm video. Chrome or Safari make .mp4.');
+  } catch (e) { console.error(e); toast("Couldn't make the video in this browser. Try Chrome or Safari."); }
+  finally { btn.textContent = label; btn.disabled = false; rendering = false; }
+}
+
 function exportPNG() {
   const { COLS, ROWS } = state.grid, col = COLORS[state.theme], unit = 12, pad = unit * 3, scale = 2;
   const w = COLS * unit + pad * 2, h = ROWS * unit * ASPECT + pad * 2;
@@ -555,6 +660,7 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
 }));
 $('png').addEventListener('click', () => state.grid && exportPNG());
 $('share').addEventListener('click', () => state.grid && shareInstagram());
+$('mp4').addEventListener('click', exportVideo);
 setupShare();
 $('svg').addEventListener('click', () => state.grid && exportSVG());
 $('copy').addEventListener('click', () => state.grid && copyText());
