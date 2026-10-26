@@ -447,7 +447,7 @@ function setupShare() {
     const probe = new File([new Blob(['x'], { type: 'image/png' })], 'p.png', { type: 'image/png' });
     const can = !!(navigator.canShare && navigator.canShare({ files: [probe] }));
     const phone = matchMedia('(pointer: coarse)').matches;
-    if (can && phone) { $('share').hidden = false; $('sharehint').hidden = false; $('png').classList.remove('primary'); }
+    if (can && phone) { $('share').hidden = false; $('sharehint').hidden = false; $('dl').classList.remove('primary'); }
   } catch {}
 }
 
@@ -544,7 +544,7 @@ async function renderVideo(onProgress) {
 let rendering = false;
 async function exportVideo() {
   if (rendering || !state.grid) return;
-  rendering = true; const btn = $('mp4'), label = btn.textContent; btn.disabled = true;
+  rendering = true; const btn = $('dl'), label = btn.innerHTML; btn.disabled = true;
   try {
     const { blob, ext } = await renderVideo(p => { btn.textContent = `Rendering ${Math.round(p * 100)}%`; });
     const file = new File([blob], 'code-portrait.' + ext, { type: blob.type });
@@ -553,7 +553,7 @@ async function exportVideo() {
     } else save(blob, file.name);
     if (ext !== 'mp4') toast('Your browser can only make a .webm video. Chrome or Safari make .mp4.');
   } catch (e) { console.error(e); toast("Couldn't make the video in this browser. Try Chrome or Safari."); }
-  finally { btn.textContent = label; btn.disabled = false; rendering = false; }
+  finally { btn.innerHTML = label; btn.disabled = false; rendering = false; }
 }
 
 function exportPNG() {
@@ -691,11 +691,32 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
   const k = seg.dataset.opt; state[k] = k === 'cols' ? +b.dataset.v : k === 'cut' ? b.dataset.v === '1' : b.dataset.v;
   rebuild();
 }));
-$('png').addEventListener('click', () => state.grid && exportPNG());
+const menu = $('dlmenu'), dl = $('dl');
+const placeMenu = () => {
+  const r = dl.getBoundingClientRect(), mh = menu.offsetHeight || 150, below = r.bottom + 6 + mh < innerHeight;
+  menu.style.left = Math.min(r.left, innerWidth - menu.offsetWidth - 12) + 'px';
+  menu.style.top = (below ? r.bottom + 6 : r.top - 6 - mh) + 'px';
+};
+if (menu.showPopover) {
+  menu.addEventListener('toggle', e => { if (e.newState === 'open') { placeMenu(); menu.querySelector('button').focus(); } });
+} else {
+  // older browsers without popover: simple toggle
+  dl.addEventListener('click', () => { menu.style.display = menu.style.display === 'block' ? 'none' : 'block'; placeMenu(); });
+  menu.style.display = 'none';
+}
+menu.addEventListener('keydown', e => {
+  const items = [...menu.querySelectorAll('button')], i = items.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+  if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+});
+menu.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', () => {
+  if (menu.hidePopover) menu.hidePopover(); else menu.style.display = 'none';
+  if (!state.grid) return;
+  const k = b.dataset.dl;
+  if (k === 'png') exportPNG(); else if (k === 'svg') exportSVG(); else exportVideo();
+}));
 $('share').addEventListener('click', () => state.grid && shareInstagram());
-$('mp4').addEventListener('click', exportVideo);
 setupShare();
-$('svg').addEventListener('click', () => state.grid && exportSVG());
 $('copymsg').addEventListener('click', () => state.grid && copyForMessages());
 let ct;
 $('chars').addEventListener('input', () => {
