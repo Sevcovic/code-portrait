@@ -150,12 +150,7 @@ function buildGrid(canvas, det) {
     for (let x = 0; x < COLS; x++) {
       const i = y * COLS + x;
       let v = Math.pow(Math.min(1, Math.max(0, g[i] + (g[i] - blur[i]) * 1.2)), 1.6);
-      // edges keep texture (hair, folds) that pure brightness loses
-      const ex = (x < COLS - 1 ? g[i + 1] : g[i]) - (x > 0 ? g[i - 1] : g[i]);
-      const ey = (y < ROWS - 1 ? g[i + COLS] : g[i]) - (y > 0 ? g[i - COLS] : g[i]);
-      v = Math.min(1, v + Math.hypot(ex, ey) * 0.6);
       if (mk[i] < 0.5) v = 0;
-      else if (v < 0.2 && (g[i] > 0.14 || Math.hypot(ex, ey) > 0.12)) v = 0.2; // darker parts of the person (hair) still get the lightest character, the background doesn't
       const gx = (x < COLS - 1 ? g[i + 1] : g[i]) - (x > 0 ? g[i - 1] : g[i]);
       if (C) row.push(v < 0.2 ? ' ' : C[Math.min(C.length - 1, Math.floor((v - 0.2) / 0.8 * C.length))]);
       else row.push(v < 0.2 ? ' ' : v < 0.38 ? '.' : v < 0.6 ? '-' : (gx < 0 ? '>' : '<'));
@@ -472,10 +467,7 @@ function exampleDet(W, H) {
   const mw = 256, mh = 256, data = new Float32Array(mw * mh);
   for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) {
     const X = x / mw * 1145, Y = y / mh * 1145;
-    const lerp = (pts) => { for (let k = 1; k < pts.length; k++) if (Y <= pts[k][0]) { const [y0, a] = pts[k - 1], [y1, b] = pts[k]; return a + (b - a) * (Y - y0) / (y1 - y0); } return pts[pts.length - 1][1]; };
-    const left = lerp([[600, 420], [640, 320], [700, 250], [800, 205], [900, 175], [1145, 170]]);
-    const right = lerp([[600, 700], [640, 800], [700, 880], [800, 905], [1145, 905]]);
-    data[y * mw + x] = (((X - 590) / 160) ** 2 + ((Y - 385) / 235) ** 2 <= 1) || (Y > 600 && X > left && X < right) ? 1 : 0;
+    data[y * mw + x] = (((X - 590) / 150) ** 2 + ((Y - 400) / 210) ** 2 <= 1) || (Y > 590 && X > 170 && X < 900) ? 1 : 0;
   }
   return { face, pose, mask: { data, w: mw, h: mh }, W, H };
 }
