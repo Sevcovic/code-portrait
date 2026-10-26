@@ -396,6 +396,40 @@ function finalCells() {
   orange.forEach((c, k) => { const [x, y] = k.split(',').map(Number); out.push([x, y, c, true]); });
   return out;
 }
+// Story-sized (1080x1920) image for Instagram, shared through the phone's share sheet.
+function storyBlob() {
+  const col = COLORS[state.theme], W = 1080, H = 1920, cells = finalCells();
+  // fit the drawn area, not the empty margins around it
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [cx, cy] of cells) { x0 = Math.min(x0, cx); x1 = Math.max(x1, cx); y0 = Math.min(y0, cy); y1 = Math.max(y1, cy); }
+  const COLS = x1 - x0 + 1, ROWS = y1 - y0 + 1;
+  const unit = Math.min(940 / COLS, 1250 / (ROWS * ASPECT));
+  const w = COLS * unit, h = ROWS * unit * ASPECT, ox = (W - w) / 2 - x0 * unit, oy = 300 + (1250 - h) / 2 - y0 * unit * ASPECT;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d'); x.fillStyle = col.bg; x.fillRect(0, 0, W, H);
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  for (const [cx, cy, ch, o] of cells) { x.font = font(unit * 1.6, o); x.fillStyle = o ? col.accent : col.fg; x.fillText(ch, ox + (cx + 0.5) * unit, oy + (cy + 0.5) * unit * ASPECT); }
+  x.fillStyle = col.accent; x.beginPath(); x.arc(W / 2, 1660, 9, 0, Math.PI * 2); x.fill();
+  x.fillStyle = col.muted; x.font = '500 30px Inter, -apple-system, "Helvetica Neue", Arial, sans-serif';
+  x.fillText('code-portrait.sevcovicp.workers.dev', W / 2, 1712);
+  return new Promise(r => c.toBlob(r, 'image/png'));
+}
+async function shareInstagram() {
+  try {
+    const blob = await storyBlob(), file = new File([blob], 'code-portrait.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file] });
+    else { save(blob, 'code-portrait-story.png'); toast('Saved. Add it to your Instagram story from your photos.'); }
+  } catch (e) { if (e.name !== 'AbortError') toast("Couldn't open sharing. Try Download PNG instead."); }
+}
+function setupShare() {
+  try {
+    const probe = new File([new Blob(['x'], { type: 'image/png' })], 'p.png', { type: 'image/png' });
+    const can = !!(navigator.canShare && navigator.canShare({ files: [probe] }));
+    const phone = matchMedia('(pointer: coarse)').matches;
+    if (can && phone) { $('share').hidden = false; $('sharehint').hidden = false; $('png').classList.remove('primary'); }
+  } catch {}
+}
+
 function exportPNG() {
   const { COLS, ROWS } = state.grid, col = COLORS[state.theme], unit = 12, pad = unit * 3, scale = 2;
   const w = COLS * unit + pad * 2, h = ROWS * unit * ASPECT + pad * 2;
@@ -499,6 +533,8 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
   rebuild();
 }));
 $('png').addEventListener('click', () => state.grid && exportPNG());
+$('share').addEventListener('click', () => state.grid && shareInstagram());
+setupShare();
 $('svg').addEventListener('click', () => state.grid && exportSVG());
 $('copy').addEventListener('click', () => state.grid && copyText());
 let ct;

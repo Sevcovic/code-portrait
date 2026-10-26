@@ -67,6 +67,7 @@
   footer br + * , footer { line-height: 1.8; }
   .support { font-size: 14px; color: var(--muted); margin-top: 4px; }
   .support a { color: var(--accent); text-underline-offset: 3px; }
+  [hidden] { display: none !important; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   @media (max-width: 820px) {
     main { padding-top: 56px; }
@@ -128,10 +129,12 @@
       <section>
         <h2>Export</h2>
         <div class="exports">
+          <button class="btn primary" id="share" type="button" hidden>Share to Instagram</button>
           <button class="btn primary" id="png" type="button">Download PNG</button>
           <button class="btn" id="svg" type="button">SVG</button>
           <button class="btn" id="copy" type="button">Copy text</button>
         </div>
+        <p class="hint" id="sharehint" hidden>Makes a story-sized image and opens your share sheet. Pick Instagram there.</p>
         <p class="toast" id="toast" aria-live="polite"></p>
         <p class="support">Like it? <a href="https://buymeacoffee.com/petrsevcovic" rel="noopener">Buy me a coffee</a></p>
       </section>
