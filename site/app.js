@@ -82,7 +82,7 @@ function cropBox(det) {
   const step = Math.max(1, Math.round(Math.max(W, H) / 300));
   for (let y = 0; y < H; y += step) for (let x = 0; x < W; x += step) if (maskAt(det, x, y) > 0.5) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
   if (x1 <= x0 || y1 <= y0) return { x: 0, y: 0, w: W, h: H };
-  const px = (x1 - x0) * 0.08, py = (y1 - y0) * 0.06, top = (y1 - y0) * 0.16;
+  const px = (x1 - x0) * 0.08, py = (y1 - y0) * 0.06, top = (y1 - y0) * 0.08;
   x0 = Math.max(0, x0 - px); y0 = Math.max(0, y0 - top); x1 = Math.min(W, x1 + px); y1 = Math.min(H, y1 + py);
   return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
 }
@@ -394,6 +394,26 @@ async function copyText() {
 function save(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast(`Saved ${name}`); }
 let tt; function toast(m) { $('toast').textContent = m; clearTimeout(tt); tt = setTimeout(() => ($('toast').textContent = ''), 4000); }
 
+/* ---------- example portrait ---------- */
+function exampleDet(W, H) {
+  const S = W / 1145, n = (x, y, v = 0.95) => ({ x: x * S / W, y: y * S / H, z: 0, visibility: v });
+  const face = Array.from({ length: 478 }, () => n(570, 420));
+  Object.entries({ 10: [590, 240], 152: [560, 560], 234: [462, 400], 454: [712, 390], 33: [475, 372], 133: [530, 372], 362: [575, 370], 263: [625, 368], 61: [510, 470], 291: [600, 468], 0: [555, 455], 2: [555, 435], 17: [555, 500] }).forEach(([i, [x, y]]) => (face[i] = n(x, y)));
+  const pose = Array.from({ length: 33 }, () => n(0.5, 0.5, 0));
+  Object.entries({ 11: [790, 700, 0.95], 12: [330, 690, 0.95], 15: [300, 925, 0.9], 16: [840, 980, 0.3], 23: [700, 1300, 0.1], 24: [400, 1300, 0.1] }).forEach(([i, [x, y, v]]) => (pose[i] = n(x, y, v)));
+  const mw = 256, mh = 256, data = new Float32Array(mw * mh);
+  for (let y = 0; y < mh; y++) for (let x = 0; x < mw; x++) {
+    const X = x / mw * 1145, Y = y / mh * 1145;
+    data[y * mw + x] = (((X - 590) / 150) ** 2 + ((Y - 400) / 210) ** 2 <= 1) || (Y > 590 && X > 170 && X < 900) ? 1 : 0;
+  }
+  return { face, pose, mask: { data, w: mw, h: mh }, W, H };
+}
+function loadExample() {
+  const img = new Image();
+  img.onload = () => { state.img = prepImage(img); state.det = exampleDet(state.img.width, state.img.height); state.example = true; $('backwrap').hidden = true; $('caption').textContent = 'Example: Petr Ševcovic. Click the portrait to replay.'; rebuild(); };
+  img.src = 'petr.jpg';
+}
+
 /* ---------- flow ---------- */
 function status(msg) { const s = $('status'); s.textContent = msg || ''; s.classList.toggle('on', !!msg); }
 function rebuild() {
@@ -411,7 +431,7 @@ async function handleFile(file) {
   img.onload = async () => {
     URL.revokeObjectURL(url);
     state.img = prepImage(img);
-    $('drop').style.display = 'none'; $('work').classList.add('on');
+    state.example = false; $('backwrap').hidden = false; $('caption').textContent = 'Click the portrait to replay.';
     state.grid = null; base = []; acc = []; ctx.clearRect(0, 0, cv.width, cv.height);
     cv.style.height = '320px';
     status(models ? 'Finding you in the photo…' : 'Loading face detection (first time only)…');
@@ -424,14 +444,15 @@ async function handleFile(file) {
 }
 
 $('file').addEventListener('change', e => handleFile(e.target.files[0]));
-const drop = $('drop');
-drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } });
-['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
-['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
-drop.addEventListener('drop', e => handleFile(e.dataTransfer.files[0]));
+$('pick').addEventListener('click', () => $('file').click());
+$('back').addEventListener('click', () => { $('file').value = ''; loadExample(); });
+let dragN = 0;
+addEventListener('dragenter', e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); dragN++; document.body.classList.add('over'); } });
+addEventListener('dragover', e => { if (dragN) e.preventDefault(); });
+addEventListener('dragleave', () => { if (dragN && --dragN === 0) document.body.classList.remove('over'); });
+addEventListener('drop', e => { if (!dragN) return; e.preventDefault(); dragN = 0; document.body.classList.remove('over'); handleFile(e.dataTransfer.files[0]); });
 addEventListener('paste', e => { const f = [...(e.clipboardData?.files || [])].find(f => f.type.startsWith('image/')); if (f) handleFile(f); });
 $('stage').addEventListener('click', () => { if (state.grid) playBase(true); });
-$('again').addEventListener('click', () => { $('work').classList.remove('on'); $('drop').style.display = ''; $('file').value = ''; $('drop').focus(); });
 
 let ft;
 for (let i = 0; i < 3; i++) $('f' + i).addEventListener('input', () => {
@@ -452,3 +473,4 @@ $('png').addEventListener('click', () => state.grid && exportPNG());
 $('svg').addEventListener('click', () => state.grid && exportSVG());
 $('copy').addEventListener('click', () => state.grid && copyText());
 let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { layout(); kick(); }, 120); });
+loadExample();

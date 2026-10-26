@@ -27,12 +27,9 @@
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; font-weight: 500; font-size: 15px; border: 1px solid var(--fg); background: transparent; cursor: pointer; text-decoration: none; }
   .btn.primary { background: var(--fg); color: var(--bg); }
   .btn:disabled { opacity: .4; cursor: default; }
-  .btn:focus-visible, input:focus-visible, select:focus-visible, .drop:focus-visible, .stage:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .btn:focus-visible, input:focus-visible, select:focus-visible, .stage:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-  .drop { margin-top: 40px; border: 1.5px dashed var(--line); border-radius: 16px; padding: 56px 24px; text-align: center; cursor: pointer; transition: border-color 120ms ease-out, background 120ms ease-out; }
-  .drop:hover, .drop.over { border-color: var(--accent); background: var(--card); }
-  .drop p { color: var(--muted); font-size: 14px; margin-top: 10px; }
-  .drop strong { font-weight: 600; }
+  body.over main::after { content: "Drop your photo"; position: fixed; inset: 16px; border: 2px dashed var(--accent); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 500; background: color-mix(in srgb, var(--bg) 85%, transparent); pointer-events: none; z-index: 10; }
 
   .work { display: none; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; margin-top: 40px; align-items: start; }
   .work.on { display: grid; }
@@ -78,27 +75,30 @@
   <h1>Code Portrait</h1>
   <p class="lead">Turn a photo into an animated portrait made of <code>. - &gt; &lt;</code>, then add up to three orange details. Your photo never leaves your browser.</p>
 
-  <label class="drop" id="drop" tabindex="0">
-    <input type="file" id="file" accept="image/*" class="sr">
-    <strong>Drop a photo here</strong> or click to choose one
-    <p>A portrait with your face and shoulders works best. You can also paste an image.</p>
-  </label>
 
-  <div class="work" id="work">
+  <div class="work on" id="work">
     <div>
       <button class="stage" id="stage" type="button" aria-label="Replay the animation">
-        <canvas id="cv" role="img" aria-label="Your photo drawn with code characters"></canvas>
+        <canvas id="cv" role="img" aria-label="Portrait drawn with code characters"></canvas>
         <span class="status" id="status" role="status"></span>
       </button>
-      <p class="hint">Click the portrait to replay.</p>
+      <p class="hint" id="caption">Example: Petr Ševcovic. Click the portrait to replay.</p>
     </div>
 
     <div class="panel">
       <section>
+        <h2>Your photo</h2>
+        <input type="file" id="file" accept="image/*" class="sr">
+        <button class="btn primary" id="pick" type="button">Use your photo</button>
+        <p class="hint" id="pickhint">Or drop or paste an image anywhere. It stays in your browser.</p>
+        <p class="again" id="backwrap" hidden><button type="button" id="back">Back to the example</button></p>
+      </section>
+
+      <section>
         <h2>Orange details</h2>
-        <div class="field"><input id="f0" placeholder="add glasses" aria-label="Orange detail 1" maxlength="60"><div class="chip" id="c0" aria-live="polite"></div></div>
+        <div class="field"><input id="f0" value="watch" placeholder="add glasses" aria-label="Orange detail 1" maxlength="60"><div class="chip" id="c0" aria-live="polite"></div></div>
         <div class="field"><input id="f1" placeholder="orange dot on my t-shirt" aria-label="Orange detail 2" maxlength="60"><div class="chip" id="c1" aria-live="polite"></div></div>
-        <div class="field"><input id="f2" placeholder="watch" aria-label="Orange detail 3" maxlength="60"><div class="chip" id="c2" aria-live="polite"></div></div>
+        <div class="field"><input id="f2" placeholder="add a hat" aria-label="Orange detail 3" maxlength="60"><div class="chip" id="c2" aria-live="polite"></div></div>
         <p class="ideas">Ideas: <button type="button">glasses</button>, <button type="button">sunglasses</button>, <button type="button">hat</button>, <button type="button">watch</button>, <button type="button">dot on my t-shirt</button>, <button type="button">earrings</button>, <button type="button">mustache</button>, <button type="button">bow tie</button>, <button type="button">hair</button>, <button type="button">shirt</button>, <button type="button">lips</button></p>
       </section>
 
@@ -119,7 +119,6 @@
           <button class="btn" id="copy" type="button">Copy text</button>
         </div>
         <p class="toast" id="toast" aria-live="polite"></p>
-        <p class="again"><button type="button" id="again">Use another photo</button></p>
       </section>
     </div>
   </div>
