@@ -542,18 +542,39 @@ async function renderVideo(onProgress) {
 }
 
 let rendering = false;
-async function exportVideo() {
+// Sharing needs a fresh tap. If rendering took too long, the browser refuses,
+// so the button turns into "Tap to share" and the next tap shares the file.
+let pending = null;
+async function shareOrSave(file, btn, label) {
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; }
+    catch (e) {
+      if (e.name === 'AbortError') return;
+      if (e.name === 'NotAllowedError') { pending = { file, btn, label, target: btn.getAttribute('popovertarget') }; btn.removeAttribute('popovertarget'); btn.textContent = 'Tap to share'; return 'pending'; }
+    }
+  }
+  save(file, file.name);
+}
+document.addEventListener('click', async e => {
+  if (!pending || !e.target.closest('button') || e.target.closest('button') !== pending.btn) return;
+  e.preventDefault(); e.stopPropagation();
+  const p = pending; pending = null;
+  p.btn.innerHTML = p.label; if (p.target) setTimeout(() => p.btn.setAttribute('popovertarget', p.target), 0);
+  try { await navigator.share({ files: [p.file] }); } catch (err) { if (err.name !== 'AbortError') save(p.file, p.file.name); }
+}, true);
+
+async function exportVideo(btn = $('dl'), forShare = !$('share').hidden) {
   if (rendering || !state.grid) return;
-  rendering = true; const btn = $('dl'), label = btn.innerHTML; btn.disabled = true;
+  rendering = true; const label = btn.innerHTML; btn.disabled = true; let kept = false;
   try {
     const { blob, ext } = await renderVideo(p => { btn.textContent = `Rendering ${Math.round(p * 100)}%`; });
     const file = new File([blob], 'code-portrait.' + ext, { type: blob.type });
-    if (!$('share').hidden && navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file] }); } catch (e) { if (e.name !== 'AbortError') save(blob, file.name); }
-    } else save(blob, file.name);
+    btn.innerHTML = label; btn.disabled = false;
+    if (forShare) kept = (await shareOrSave(file, btn, label)) === 'pending';
+    else save(blob, file.name);
     if (ext !== 'mp4') toast('Your browser can only make a .webm video. Chrome or Safari make .mp4.');
   } catch (e) { console.error(e); toast("Couldn't make the video in this browser. Try Chrome or Safari."); }
-  finally { btn.innerHTML = label; btn.disabled = false; rendering = false; }
+  finally { if (!kept) btn.innerHTML = label; btn.disabled = false; rendering = false; }
 }
 
 async function copyText() {
@@ -716,12 +737,12 @@ function setupMenu(menu, btn) {
   menu.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', () => {
     close();
     if (!state.grid) return;
-    ({ png: exportPNG, svg: exportSVG, mp4: exportVideo, text: copyText, msg: copyForMessages })[b.dataset.dl]();
+    ({ png: exportPNG, svg: exportSVG, mp4: () => exportVideo(), text: copyText, msg: copyForMessages, shareimg: shareInstagram, sharevid: () => exportVideo($('share'), true) })[b.dataset.dl]();
   }));
 }
 setupMenu($('dlmenu'), $('dl'));
 setupMenu($('cpmenu'), $('cp'));
-$('share').addEventListener('click', () => state.grid && shareInstagram());
+setupMenu($('shmenu'), $('share'));
 setupShare();
 let ct;
 $('chars').addEventListener('input', () => {

@@ -135,7 +135,11 @@
       <section>
         <h2>Export</h2>
         <div class="exports">
-          <button class="btn primary" id="share" type="button" hidden>Share to Instagram</button>
+          <button class="btn primary" id="share" type="button" hidden popovertarget="shmenu" aria-haspopup="menu">Share to Instagram <span aria-hidden="true">▾</span></button>
+          <div id="shmenu" class="menu" popover role="menu" aria-label="Share to Instagram">
+            <button type="button" role="menuitem" data-dl="shareimg">Share image</button>
+            <button type="button" role="menuitem" data-dl="sharevid">Share video</button>
+          </div>
           <button class="btn primary" id="dl" type="button" popovertarget="dlmenu" aria-haspopup="menu">Download <span aria-hidden="true">▾</span></button>
           <div id="dlmenu" class="menu" popover role="menu" aria-label="Download as">
             <button type="button" role="menuitem" data-dl="png">Download as PNG</button>
@@ -149,7 +153,7 @@
             <p class="menu-note" id="msgnote">Chat apps use fonts where <code>. - &gt; &lt;</code> have different widths, so the portrait falls apart there. This version uses braille dot characters (⣿ ⢵ ⠁ and so on), which all have the same width and keep the shape.</p>
           </div>
         </div>
-        <p class="hint" id="sharehint" hidden>Makes a story-sized image and opens your share sheet. Pick Instagram there.</p>
+        <p class="hint" id="sharehint" hidden>Makes a story-sized image or video and opens your share sheet. Pick Instagram there.</p>
         <p class="toast" id="toast" aria-live="polite"></p>
         <p class="support">Like it? <a href="https://buymeacoffee.com/petrsevcovic" rel="noopener">Buy me a coffee</a></p>
       </section>
