@@ -556,6 +556,14 @@ async function exportVideo() {
   finally { btn.innerHTML = label; btn.disabled = false; rendering = false; }
 }
 
+async function copyText() {
+  const { rows } = state.grid, grid = rows.map(r => [...r]);
+  cellsCache.forEach(([x, y, c]) => { grid[y][x] = c; });
+  const text = grid.map(r => r.join('').replace(/\s+$/, '')).join('\n').replace(/^\n+|\n+$/g, '');
+  try { await navigator.clipboard.writeText(text); toast('Copied as text. Best pasted somewhere with a monospace font, like a code editor.'); }
+  catch { toast("Couldn't copy. Your browser blocked clipboard access."); }
+}
+
 function exportPNG() {
   const { COLS, ROWS } = state.grid, col = COLORS[state.theme], unit = 12, pad = unit * 3, scale = 2;
   const w = COLS * unit + pad * 2, h = ROWS * unit * ASPECT + pad * 2;
@@ -713,7 +721,7 @@ menu.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', () =
   if (menu.hidePopover) menu.hidePopover(); else menu.style.display = 'none';
   if (!state.grid) return;
   const k = b.dataset.dl;
-  if (k === 'png') exportPNG(); else if (k === 'svg') exportSVG(); else exportVideo();
+  if (k === 'png') exportPNG(); else if (k === 'svg') exportSVG(); else if (k === 'text') copyText(); else exportVideo();
 }));
 $('share').addEventListener('click', () => state.grid && shareInstagram());
 setupShare();

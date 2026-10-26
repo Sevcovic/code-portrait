@@ -60,6 +60,7 @@
   .seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
   .menu { position: fixed; inset: auto; margin: 0; padding: 6px; min-width: 210px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--fg); box-shadow: 0 12px 32px rgba(0,0,0,.18); }
   .menu button { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; border-radius: 9px; background: none; font-size: 15px; cursor: pointer; }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; }
   .menu button:hover, .menu button:focus-visible { background: var(--bg); outline: none; }
   .exports { display: flex; flex-wrap: wrap; gap: 8px; }
   .toast { font-size: 13px; color: var(--ok); margin-top: 10px; min-height: 1.4em; }
@@ -138,6 +139,8 @@
             <button type="button" role="menuitem" data-dl="png">Download as PNG</button>
             <button type="button" role="menuitem" data-dl="mp4">Download as MP4</button>
             <button type="button" role="menuitem" data-dl="svg">Download as SVG</button>
+            <hr role="separator">
+            <button type="button" role="menuitem" data-dl="text">Copy as text</button>
           </div>
           <button class="btn" id="copymsg" type="button">Copy to clipboard</button>
         </div>
