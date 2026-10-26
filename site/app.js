@@ -16,7 +16,35 @@ const MODEL = {
 const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
 const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const state = { cols: 80, theme: 'dark', cut: true, img: null, det: null, grid: null, feats: [null, null, null] };
+const state = { cols: 80, theme: 'dark', cut: true, img: null, det: null, grid: null, feats: [null, null, null], chars: null };
+
+/* ---------- custom characters ---------- */
+const DEFAULT_CHARS = '.-><';
+function inkOf(ch) {
+  const c = document.createElement('canvas'); c.width = c.height = 48;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.font = '36px "JetBrains Mono", ui-monospace, Menlo, monospace'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.fillText(ch, 24, 24);
+  const d = x.getImageData(0, 0, 48, 48).data; let s = 0;
+  for (let i = 3; i < d.length; i += 4) s += d[i];
+  return s;
+}
+// Returns sorted characters (light to dense), null for the default set, or an error message.
+function parseChars(text) {
+  const list = [...new Set(Array.from(text).filter(c => c.trim()))];
+  if (list.length < 3) return { error: 'Add at least 3 different characters.' };
+  if (list.length > 10) return { error: 'Use 10 characters at most.' };
+  if (list.length === 4 && [...DEFAULT_CHARS].every(c => list.includes(c))) return { chars: null };
+  return { chars: list.map(c => [c, inkOf(c)]).sort((a, b) => a[1] - b[1]).map(a => a[0]) };
+}
+// Accent shapes are drawn with . - > <; map those roles onto the custom set.
+function mapGlyph(c) {
+  const C = state.chars; if (!C) return c; const N = C.length;
+  if (c === '.') return C[0];
+  if (c === '-') return C[Math.floor((N - 1) / 2)];
+  if (c === '<') return N >= 4 ? C[N - 2] : C[N - 1];
+  return C[N - 1];
+}
 
 /* ---------- detection ---------- */
 let models = null;
@@ -116,15 +144,16 @@ function buildGrid(canvas, det) {
       for (let xx = Math.max(0, x - r); xx <= Math.min(COLS - 1, x + r); xx++) { s += g[yy * COLS + xx]; c++; }
     blur[y * COLS + x] = s / c;
   }
-  const rows = [];
+  const rows = [], C = state.chars;
   for (let y = 0; y < ROWS; y++) {
-    let row = '';
+    const row = [];
     for (let x = 0; x < COLS; x++) {
       const i = y * COLS + x;
       let v = Math.pow(Math.min(1, Math.max(0, g[i] + (g[i] - blur[i]) * 1.2)), 1.6);
       if (mk[i] < 0.5) v = 0;
       const gx = (x < COLS - 1 ? g[i + 1] : g[i]) - (x > 0 ? g[i - 1] : g[i]);
-      row += v < 0.2 ? ' ' : v < 0.38 ? '.' : v < 0.6 ? '-' : (gx < 0 ? '>' : '<');
+      if (C) row.push(v < 0.2 ? ' ' : C[Math.min(C.length - 1, Math.floor((v - 0.2) / 0.8 * C.length))]);
+      else row.push(v < 0.2 ? ' ' : v < 0.38 ? '.' : v < 0.6 ? '-' : (gx < 0 ? '>' : '<'));
     }
     rows.push(row);
   }
@@ -154,7 +183,7 @@ function featureCells(f, text, det, grid) {
   const toG = p => [((p.x * det.W) - box.x) / box.w * COLS - 0.5, ((p.y * det.H) - box.y) / box.h * ROWS - 0.5];
   const F = det.face, P = det.pose;
   const cells = new Map();
-  const put = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && x < COLS && y >= 0 && y < ROWS) cells.set(x + ',' + y, [x, y, c]); };
+  const put = (x, y, c) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && x < COLS && y >= 0 && y < ROWS) cells.set(x + ',' + y, [x, y, mapGlyph(c)]); };
   const keep = (x, y) => { x = Math.round(x); y = Math.round(y); if (x >= 0 && x < COLS && y >= 0 && y < ROWS && rows[y][x] !== ' ') cells.set(x + ',' + y, [x, y, rows[y][x]]); };
   const lensBox = (cx, cy, hw, hh, fill) => {
     cx = Math.round(cx); cy = Math.round(cy);
@@ -291,7 +320,7 @@ function resolveFeatures() {
 let W = 0, H = 0, cw = 0, chh = 0, base = [], acc = [], raf = 0;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const ease = k => 1 - Math.pow(1 - k, 3);
-const glyph = () => SET[(Math.random() * 4) | 0];
+const glyph = () => { const S = state.chars || SET; return S[(Math.random() * S.length) | 0]; };
 
 function layout() {
   if (!state.grid) return;
@@ -379,7 +408,7 @@ function exportPNG() {
 function exportSVG() {
   const { COLS, ROWS } = state.grid, col = COLORS[state.theme], unit = 12, pad = unit * 3;
   const w = COLS * unit + pad * 2, h = Math.round(ROWS * unit * ASPECT + pad * 2);
-  const esc = c => c === '<' ? '&lt;' : c === '>' ? '&gt;' : c;
+  const esc = c => c.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const cells = finalCells(), t = o => cells.filter(c => c[3] === o).map(([cx, cy, ch]) => `<text x="${(pad + (cx + 0.5) * unit).toFixed(1)}" y="${(pad + (cy + 0.5) * unit * ASPECT).toFixed(1)}">${esc(ch)}</text>`).join('');
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><rect width="100%" height="100%" fill="${col.bg}"/><g font-family="JetBrains Mono, Menlo, Consolas, monospace" font-size="${unit * 1.6}" text-anchor="middle" dominant-baseline="central"><g fill="${col.fg}">${t(false)}</g><g fill="${col.accent}" font-weight="700">${t(true)}</g></g></svg>`;
   save(new Blob([svg], { type: 'image/svg+xml' }), 'code-portrait.svg');
@@ -472,5 +501,17 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
 $('png').addEventListener('click', () => state.grid && exportPNG());
 $('svg').addEventListener('click', () => state.grid && exportSVG());
 $('copy').addEventListener('click', () => state.grid && copyText());
+let ct;
+$('chars').addEventListener('input', () => {
+  clearTimeout(ct);
+  ct = setTimeout(() => {
+    const r = parseChars($('chars').value), msg = $('charsmsg');
+    if (r.error) { msg.className = 'chip no'; msg.textContent = r.error; return; }
+    state.chars = r.chars;
+    msg.className = 'chip'; msg.textContent = r.chars ? 'Light to dense: ' + r.chars.join(' ') : '';
+    rebuild();
+  }, 500);
+});
+$('charsreset').addEventListener('click', () => { $('chars').value = '. - > <'; $('chars').dispatchEvent(new Event('input')); });
 let rt; addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => { layout(); kick(); }, 120); });
 loadExample();

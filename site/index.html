@@ -47,6 +47,7 @@
   .field { margin-bottom: 12px; }
   .field input { width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
   .field input::placeholder { color: var(--muted); }
+  .field input.mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; letter-spacing: .15em; }
   .chip { font-size: 13px; margin-top: 6px; color: var(--muted); min-height: 1.4em; }
   .chip.ok { color: var(--ok); }
   .chip.no { color: var(--accent); }
@@ -79,7 +80,7 @@
 <main>
   <div class="dot" aria-hidden="true"></div>
   <h1>Code Portrait</h1>
-  <p class="lead">Turn a photo into an animated portrait made of <code>. - &gt; &lt;</code>, then add up to three orange details. Your photo never leaves your browser.</p>
+  <p class="lead">Turn a photo into an animated portrait made of <code>. - &gt; &lt;</code>, or pick your own characters, then add up to three orange details. Your photo never leaves your browser.</p>
   <p class="rams">Inspired by Dieter Rams' <em>"Less, but better"</em>: only four characters and a single orange accent, nothing more.</p>
 
 
@@ -107,6 +108,12 @@
         <div class="field"><input id="f1" placeholder="orange dot on my t-shirt" aria-label="Orange detail 2" maxlength="60"><div class="chip" id="c1" aria-live="polite"></div></div>
         <div class="field"><input id="f2" placeholder="add a hat" aria-label="Orange detail 3" maxlength="60"><div class="chip" id="c2" aria-live="polite"></div></div>
         <p class="ideas">Ideas: <button type="button">glasses</button>, <button type="button">sunglasses</button>, <button type="button">hat</button>, <button type="button">watch</button>, <button type="button">dot on my t-shirt</button>, <button type="button">earrings</button>, <button type="button">mustache</button>, <button type="button">bow tie</button>, <button type="button">hair</button>, <button type="button">shirt</button>, <button type="button">lips</button></p>
+      </section>
+
+      <section>
+        <h2>Characters</h2>
+        <div class="field"><input id="chars" value=". - &gt; &lt;" aria-label="Characters to draw with" aria-describedby="charshint charsmsg" maxlength="40" autocomplete="off" spellcheck="false" class="mono"><div class="chip" id="charsmsg" aria-live="polite"></div></div>
+        <p class="ideas" id="charshint">Pick at least 3. They're sorted from light to dense for you. <button type="button" id="charsreset">Reset</button></p>
       </section>
 
       <section>
