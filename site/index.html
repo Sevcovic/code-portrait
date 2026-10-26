@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Code Portrait</title>
+<meta name="description" content="Turn your photo into an animated portrait made of . - > < characters and add orange details. Runs in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f3ef; --fg: #1a1a1a; --muted: #6b6b66; --line: #d9d7d0; --card: #fbfaf7; --accent: #e8590c; --ok: #2b8a3e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #141413; --fg: #ecebe6; --muted: #8f8e88; --line: #2c2c2a; --card: #1b1b1a; --accent: #f76707; --ok: #51cf66; }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { background: var(--bg); color: var(--fg); font: 400 16px/1.55 Inter, -apple-system, "Helvetica Neue", Arial, sans-serif; -webkit-font-smoothing: antialiased; }
+  main { max-width: 1040px; margin: 0 auto; padding: 72px 24px 64px; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--accent); margin-bottom: 32px; }
+  h1 { font-size: 40px; line-height: 1.1; font-weight: 600; letter-spacing: -0.02em; }
+  .lead { font-size: 19px; color: var(--muted); margin-top: 16px; max-width: 36em; }
+  h2 { font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 14px; }
+  button, input, select { font: inherit; color: inherit; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px; font-weight: 500; font-size: 15px; border: 1px solid var(--fg); background: transparent; cursor: pointer; text-decoration: none; }
+  .btn.primary { background: var(--fg); color: var(--bg); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .btn:focus-visible, input:focus-visible, select:focus-visible, .drop:focus-visible, .stage:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  .drop { margin-top: 40px; border: 1.5px dashed var(--line); border-radius: 16px; padding: 56px 24px; text-align: center; cursor: pointer; transition: border-color 120ms ease-out, background 120ms ease-out; }
+  .drop:hover, .drop.over { border-color: var(--accent); background: var(--card); }
+  .drop p { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  .drop strong { font-weight: 600; }
+
+  .work { display: none; grid-template-columns: minmax(0, 1fr) 340px; gap: 40px; margin-top: 40px; align-items: start; }
+  .work.on { display: grid; }
+  .stage { position: relative; border-radius: 16px; background: #141413; padding: 28px 20px; cursor: pointer; border: 0; width: 100%; display: block; }
+  .stage.light { background: #f4f3ef; box-shadow: inset 0 0 0 1px var(--line); }
+  .stage canvas { display: block; width: 100%; max-width: 560px; margin: 0 auto; }
+  .hint { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .status { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; color: #8f8e88; font-size: 14px; border-radius: 16px; }
+  .status.on { display: flex; }
+
+  .panel > section + section { margin-top: 32px; }
+  .field { margin-bottom: 12px; }
+  .field input { width: 100%; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+  .field input::placeholder { color: var(--muted); }
+  .chip { font-size: 13px; margin-top: 6px; color: var(--muted); min-height: 1.4em; }
+  .chip.ok { color: var(--ok); }
+  .chip.no { color: var(--accent); }
+  .ideas { font-size: 13px; color: var(--muted); }
+  .ideas button { border: 0; background: none; color: var(--fg); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; padding: 0; font-size: 13px; }
+  .opts { display: grid; gap: 12px; }
+  .opt { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+  .seg button { border: 0; background: none; padding: 5px 12px; border-radius: 999px; font-size: 13px; cursor: pointer; color: var(--muted); }
+  .seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+  .exports { display: flex; flex-wrap: wrap; gap: 8px; }
+  .toast { font-size: 13px; color: var(--ok); margin-top: 10px; min-height: 1.4em; }
+  .again { margin-top: 12px; }
+  .again button { border: 0; background: none; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-size: 14px; }
+  footer { max-width: 1040px; margin: 0 auto; padding: 28px 24px 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  footer a { color: inherit; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  @media (max-width: 820px) {
+    main { padding-top: 56px; }
+    h1 { font-size: 32px; }
+    .lead { font-size: 17px; }
+    .work.on { grid-template-columns: 1fr; gap: 32px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="dot" aria-hidden="true"></div>
+  <h1>Code Portrait</h1>
+  <p class="lead">Turn a photo into an animated portrait made of <code>. - &gt; &lt;</code>, then add up to three orange details. Your photo never leaves your browser.</p>
+
+  <label class="drop" id="drop" tabindex="0">
+    <input type="file" id="file" accept="image/*" class="sr">
+    <strong>Drop a photo here</strong> or click to choose one
+    <p>A portrait with your face and shoulders works best. You can also paste an image.</p>
+  </label>
+
+  <div class="work" id="work">
+    <div>
+      <button class="stage" id="stage" type="button" aria-label="Replay the animation">
+        <canvas id="cv" role="img" aria-label="Your photo drawn with code characters"></canvas>
+        <span class="status" id="status" role="status"></span>
+      </button>
+      <p class="hint">Click the portrait to replay.</p>
+    </div>
+
+    <div class="panel">
+      <section>
+        <h2>Orange details</h2>
+        <div class="field"><input id="f0" placeholder="add glasses" aria-label="Orange detail 1" maxlength="60"><div class="chip" id="c0" aria-live="polite"></div></div>
+        <div class="field"><input id="f1" placeholder="orange dot on my t-shirt" aria-label="Orange detail 2" maxlength="60"><div class="chip" id="c1" aria-live="polite"></div></div>
+        <div class="field"><input id="f2" placeholder="watch" aria-label="Orange detail 3" maxlength="60"><div class="chip" id="c2" aria-live="polite"></div></div>
+        <p class="ideas">Ideas: <button type="button">glasses</button>, <button type="button">sunglasses</button>, <button type="button">hat</button>, <button type="button">watch</button>, <button type="button">dot on my t-shirt</button>, <button type="button">earrings</button>, <button type="button">mustache</button>, <button type="button">bow tie</button>, <button type="button">hair</button>, <button type="button">shirt</button>, <button type="button">lips</button></p>
+      </section>
+
+      <section>
+        <h2>Style</h2>
+        <div class="opts">
+          <div class="opt"><span>Detail</span><span class="seg" data-opt="cols"><button type="button" data-v="56">Low</button><button type="button" data-v="80" aria-pressed="true">Medium</button><button type="button" data-v="110">High</button></span></div>
+          <div class="opt"><span>Background</span><span class="seg" data-opt="theme"><button type="button" data-v="dark" aria-pressed="true">Dark</button><button type="button" data-v="light">Light</button></span></div>
+          <div class="opt"><span>Remove photo background</span><span class="seg" data-opt="cut"><button type="button" data-v="1" aria-pressed="true">On</button><button type="button" data-v="0">Off</button></span></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Export</h2>
+        <div class="exports">
+          <button class="btn primary" id="png" type="button">Download PNG</button>
+          <button class="btn" id="svg" type="button">SVG</button>
+          <button class="btn" id="copy" type="button">Copy text</button>
+        </div>
+        <p class="toast" id="toast" aria-live="polite"></p>
+        <p class="again"><button type="button" id="again">Use another photo</button></p>
+      </section>
+    </div>
+  </div>
+</main>
+<footer>Made by Petr Ševcovic. Face and pose detection by <a href="https://ai.google.dev/edge/mediapipe">MediaPipe</a>, running on your device. Also see <a href="https://rams-design-review.sevcovicp.workers.dev">Rams Design Review</a>.</footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>
