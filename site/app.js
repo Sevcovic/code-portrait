@@ -560,7 +560,7 @@ async function copyText() {
   const { rows } = state.grid, grid = rows.map(r => [...r]);
   cellsCache.forEach(([x, y, c]) => { grid[y][x] = c; });
   const text = grid.map(r => r.join('').replace(/\s+$/, '')).join('\n').replace(/^\n+|\n+$/g, '');
-  try { await navigator.clipboard.writeText(text); toast('Copied as text. Best pasted somewhere with a monospace font, like a code editor.'); }
+  try { await navigator.clipboard.writeText(text); toast('Copied. Best pasted somewhere with a monospace font, like a code editor.'); }
   catch { toast("Couldn't copy. Your browser blocked clipboard access."); }
 }
 
@@ -699,33 +699,30 @@ document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e
   const k = seg.dataset.opt; state[k] = k === 'cols' ? +b.dataset.v : k === 'cut' ? b.dataset.v === '1' : b.dataset.v;
   rebuild();
 }));
-const menu = $('dlmenu'), dl = $('dl');
-const placeMenu = () => {
-  const r = dl.getBoundingClientRect(), mh = menu.offsetHeight || 150, below = r.bottom + 6 + mh < innerHeight;
-  menu.style.left = Math.min(r.left, innerWidth - menu.offsetWidth - 12) + 'px';
-  menu.style.top = (below ? r.bottom + 6 : r.top - 6 - mh) + 'px';
-};
-if (menu.showPopover) {
-  menu.addEventListener('toggle', e => { if (e.newState === 'open') { placeMenu(); menu.querySelector('button').focus(); } });
-} else {
-  // older browsers without popover: simple toggle
-  dl.addEventListener('click', () => { menu.style.display = menu.style.display === 'block' ? 'none' : 'block'; placeMenu(); });
-  menu.style.display = 'none';
+function setupMenu(menu, btn) {
+  const place = () => {
+    const r = btn.getBoundingClientRect(), mh = menu.offsetHeight || 150, below = r.bottom + 6 + mh < innerHeight;
+    menu.style.left = Math.max(12, Math.min(r.left, innerWidth - menu.offsetWidth - 12)) + 'px';
+    menu.style.top = (below ? r.bottom + 6 : r.top - 6 - mh) + 'px';
+  };
+  const close = () => { if (menu.hidePopover) menu.hidePopover(); else menu.style.display = 'none'; };
+  if (menu.showPopover) menu.addEventListener('toggle', e => { if (e.newState === 'open') { place(); menu.querySelector('button').focus(); } });
+  else { btn.addEventListener('click', () => { menu.style.display = menu.style.display === 'block' ? 'none' : 'block'; place(); }); menu.style.display = 'none'; }
+  menu.addEventListener('keydown', e => {
+    const items = [...menu.querySelectorAll('button')], i = items.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
+    if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
+  });
+  menu.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', () => {
+    close();
+    if (!state.grid) return;
+    ({ png: exportPNG, svg: exportSVG, mp4: exportVideo, text: copyText, msg: copyForMessages })[b.dataset.dl]();
+  }));
 }
-menu.addEventListener('keydown', e => {
-  const items = [...menu.querySelectorAll('button')], i = items.indexOf(document.activeElement);
-  if (e.key === 'ArrowDown') { e.preventDefault(); items[(i + 1) % items.length].focus(); }
-  if (e.key === 'ArrowUp') { e.preventDefault(); items[(i - 1 + items.length) % items.length].focus(); }
-});
-menu.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', () => {
-  if (menu.hidePopover) menu.hidePopover(); else menu.style.display = 'none';
-  if (!state.grid) return;
-  const k = b.dataset.dl;
-  if (k === 'png') exportPNG(); else if (k === 'svg') exportSVG(); else if (k === 'text') copyText(); else exportVideo();
-}));
+setupMenu($('dlmenu'), $('dl'));
+setupMenu($('cpmenu'), $('cp'));
 $('share').addEventListener('click', () => state.grid && shareInstagram());
 setupShare();
-$('copymsg').addEventListener('click', () => state.grid && copyForMessages());
 let ct;
 $('chars').addEventListener('input', () => {
   clearTimeout(ct);

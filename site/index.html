@@ -60,6 +60,8 @@
   .seg button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
   .menu { position: fixed; inset: auto; margin: 0; padding: 6px; min-width: 210px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); color: var(--fg); box-shadow: 0 12px 32px rgba(0,0,0,.18); }
   .menu button { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; border-radius: 9px; background: none; font-size: 15px; cursor: pointer; }
+  .menu { max-width: 300px; }
+  .menu-note { font-size: 12.5px; line-height: 1.45; color: var(--muted); padding: 4px 12px 8px; }
   .menu hr { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; }
   .menu button:hover, .menu button:focus-visible { background: var(--bg); outline: none; }
   .exports { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -139,10 +141,13 @@
             <button type="button" role="menuitem" data-dl="png">Download as PNG</button>
             <button type="button" role="menuitem" data-dl="mp4">Download as MP4</button>
             <button type="button" role="menuitem" data-dl="svg">Download as SVG</button>
-            <hr role="separator">
-            <button type="button" role="menuitem" data-dl="text">Copy as text</button>
           </div>
-          <button class="btn" id="copymsg" type="button">Copy to clipboard</button>
+          <button class="btn" id="cp" type="button" popovertarget="cpmenu" aria-haspopup="menu">Copy <span aria-hidden="true">▾</span></button>
+          <div id="cpmenu" class="menu" popover role="menu" aria-label="Copy">
+            <button type="button" role="menuitem" data-dl="text">Copy text</button>
+            <button type="button" role="menuitem" data-dl="msg" aria-describedby="msgnote">Copy for messages</button>
+            <p class="menu-note" id="msgnote">Chat apps use fonts where <code>. - &gt; &lt;</code> have different widths, so the portrait falls apart there. This version uses braille dot characters (⣿ ⢵ ⠁ and so on), which all have the same width and keep the shape.</p>
+          </div>
         </div>
         <p class="hint" id="sharehint" hidden>Makes a story-sized image and opens your share sheet. Pick Instagram there.</p>
         <p class="toast" id="toast" aria-live="polite"></p>
