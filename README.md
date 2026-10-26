@@ -13,7 +13,7 @@ Everything runs in the browser. The photo is never uploaded anywhere.
 
 ## Supported details
 
-glasses, sunglasses, hat, watch, dot on the chest, earrings, mustache, bow tie, and highlighting hair, eyes, lips, face or shirt.
+glasses, sunglasses, hat, watch, heart or dot on the chest, earrings, mustache, bow tie, and highlighting hair, eyes, lips, face or shirt.
 
 ## Run locally
 

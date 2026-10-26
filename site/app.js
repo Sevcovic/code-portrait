@@ -165,6 +165,7 @@ const FEATURES = [
   { id: 'sunglasses', label: 'Sunglasses', re: /sun ?glass|shades/, need: 'face' },
   { id: 'glasses', label: 'Glasses', re: /glass|specs|spectacle/, need: 'face' },
   { id: 'watch', label: 'Watch', re: /watch|wrist|bracelet/, need: 'pose' },
+  { id: 'heart', label: 'Heart on the chest', re: /heart|srdce|srdíčko|\blove\b/, need: 'body' },
   { id: 'dot', label: 'Dot on the chest', re: /\bdot\b|circle|logo|badge|\bpin\b/, need: 'body' },
   { id: 'hat', label: 'Hat', re: /\bhat\b|\bcap\b|beanie/, need: 'face' },
   { id: 'earrings', label: 'Earrings', re: /earring|\bears?\b/, need: 'face' },
@@ -266,6 +267,26 @@ function featureCells(f, text, det, grid) {
       const sw = shoulders ? Math.abs(shoulders[0][0] - shoulders[1][0]) : COLS * 0.4;
       const hw = Math.max(2, Math.round(sw * 0.06)), hh = Math.max(1, Math.round(hw / ASPECT));
       lensBox(x, y, hw, hh, false); put(x, y, '.');
+      break;
+    }
+    case 'heart': {
+      const c = chest(); if (!c) return { cells: [], note: "Couldn't find a chest in this photo" };
+      // which side, as you look at the photo (default: right)
+      const side = /\bleft\b|vlevo|levé|leve/.test(text) ? -1 : /\bcenter\b|\bmiddle\b|uprostřed/.test(text) ? 0 : 1;
+      const HEARTS = [
+        ['## ##', '#####', ' ### ', '  #  '],
+        [' ## ## ', '#######', ' ##### ', '  ###  ', '   #   '],
+        [' ###   ### ', '##### #####', '###########', ' ######### ', '  #######  ', '   #####   ', '    ###    ', '     #     ']
+      ];
+      const want = c[2] * 0.14, shape = want < 7 ? HEARTS[0] : want < 10 ? HEARTS[1] : HEARTS[2];
+      const hx = Math.round(c[0] + side * c[2] * 0.22), hy = Math.round(c[1] - 1), w = shape[0].length;
+      if (hy >= ROWS - 1) return { cells: [], note: 'The chest is out of frame' };
+      shape.forEach((row, dy) => [...row].forEach((m, dx) => {
+        if (m !== '#') return;
+        const x = hx - (w >> 1) + dx, y = hy - 1 + dy;
+        if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return;
+        cells.set(x + ',' + y, [x, y, rows[y][x] !== ' ' ? rows[y][x] : mapGlyph('.')]);
+      }));
       break;
     }
     case 'dot': {
