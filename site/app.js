@@ -573,6 +573,46 @@ function exportSVG() {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"><rect width="100%" height="100%" fill="${col.bg}"/><g font-family="JetBrains Mono, Menlo, Consolas, monospace" font-size="${unit * 1.6}" text-anchor="middle" dominant-baseline="central"><g fill="${col.fg}">${t(false)}</g><g fill="${col.accent}" font-weight="700">${t(true)}</g></g></svg>`;
   save(new Blob([svg], { type: 'image/svg+xml' }), 'code-portrait.svg');
 }
+// Messaging apps use proportional fonts, so . - > < drift out of line there.
+// Braille dot characters all share one width (even the blank one), so a braille
+// version keeps its shape in iMessage, WhatsApp and Messenger.
+function brailleText(widthChars = 20) {
+  const det = state.det, box = cropBox(det), DW = widthChars * 2;
+  const DH = Math.max(8, Math.round(DW * box.h / box.w / 4) * 4);
+  const sc = document.createElement('canvas'); sc.width = DW; sc.height = DH;
+  const sx = sc.getContext('2d', { willReadFrequently: true });
+  sx.imageSmoothingQuality = 'high';
+  sx.drawImage(state.img, box.x, box.y, box.w, box.h, 0, 0, DW, DH);
+  const px = sx.getImageData(0, 0, DW, DH).data, n = DW * DH, g = new Float32Array(n), mk = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    g[i] = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) / 255;
+    mk[i] = maskAt(det, box.x + ((i % DW) + 0.5) / DW * box.w, box.y + (((i / DW) | 0) + 0.5) / DH * box.h);
+  }
+  const vals = []; for (let i = 0; i < n; i++) if (mk[i] > 0.5) vals.push(g[i]);
+  const src = (vals.length > 50 ? vals : Array.from(g)).sort((a, b) => a - b);
+  const lo = src[Math.floor(src.length * 0.02)], hi = src[Math.min(src.length - 1, Math.floor(src.length * 0.995))];
+  const BAYER = [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
+  const on = (x, y) => {
+    const i = y * DW + x; if (mk[i] < 0.5) return false;
+    const v = Math.min(1, Math.max(0, (g[i] - lo) / Math.max(0.05, hi - lo)));
+    return v > 0.2 + 0.6 * (BAYER[y % 4][x % 4] + 0.5) / 16;
+  };
+  const BITS = [[0, 0, 0x01], [0, 1, 0x02], [0, 2, 0x04], [1, 0, 0x08], [1, 1, 0x10], [1, 2, 0x20], [0, 3, 0x40], [1, 3, 0x80]];
+  const lines = [];
+  for (let y = 0; y < DH; y += 4) {
+    let line = '';
+    for (let x = 0; x < DW; x += 2) { let b = 0; for (const [dx, dy, bit] of BITS) if (on(x + dx, y + dy)) b |= bit; line += String.fromCharCode(0x2800 + b); }
+    lines.push(line);
+  }
+  while (lines.length && /^⠀+$/.test(lines[0])) lines.shift();
+  while (lines.length && /^⠀+$/.test(lines[lines.length - 1])) lines.pop();
+  return lines.join('\n');
+}
+async function copyForMessages() {
+  try { await navigator.clipboard.writeText(brailleText(20)); toast('Copied a version that keeps its shape in iMessage and other chats.'); }
+  catch { toast("Couldn't copy. Your browser blocked clipboard access."); }
+}
+
 async function copyText() {
   const { rows } = state.grid, grid = rows.map(r => [...r]);
   cellsCache.forEach(([x, y, c]) => { grid[y][x] = c; });
@@ -664,6 +704,7 @@ $('mp4').addEventListener('click', exportVideo);
 setupShare();
 $('svg').addEventListener('click', () => state.grid && exportSVG());
 $('copy').addEventListener('click', () => state.grid && copyText());
+$('copymsg').addEventListener('click', () => state.grid && copyForMessages());
 let ct;
 $('chars').addEventListener('input', () => {
   clearTimeout(ct);
