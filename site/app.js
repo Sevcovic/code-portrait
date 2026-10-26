@@ -609,17 +609,10 @@ function brailleText(widthChars = 20) {
   return lines.join('\n');
 }
 async function copyForMessages() {
-  try { await navigator.clipboard.writeText(brailleText(20)); toast('Copied a version that keeps its shape in iMessage and other chats.'); }
+  try { await navigator.clipboard.writeText(brailleText(20)); toast('Copied. Paste it into any chat, it keeps its shape.'); }
   catch { toast("Couldn't copy. Your browser blocked clipboard access."); }
 }
 
-async function copyText() {
-  const { rows } = state.grid, grid = rows.map(r => [...r]);
-  cellsCache.forEach(([x, y, c]) => { grid[y][x] = c; });
-  const text = grid.map(r => r.join('').replace(/\s+$/, '')).join('\n').replace(/^\n+|\n+$/g, '');
-  try { await navigator.clipboard.writeText(text); toast('Copied. Orange details are included as plain characters.'); }
-  catch { toast("Couldn't copy. Your browser blocked clipboard access."); }
-}
 function save(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast(`Saved ${name}`); }
 let tt; function toast(m) { $('toast').textContent = m; clearTimeout(tt); tt = setTimeout(() => ($('toast').textContent = ''), 4000); }
 
@@ -703,7 +696,6 @@ $('share').addEventListener('click', () => state.grid && shareInstagram());
 $('mp4').addEventListener('click', exportVideo);
 setupShare();
 $('svg').addEventListener('click', () => state.grid && exportSVG());
-$('copy').addEventListener('click', () => state.grid && copyText());
 $('copymsg').addEventListener('click', () => state.grid && copyForMessages());
 let ct;
 $('chars').addEventListener('input', () => {

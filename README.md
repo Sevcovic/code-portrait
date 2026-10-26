@@ -9,7 +9,7 @@ Everything runs in the browser. The photo is never uploaded anywhere.
 - [MediaPipe](https://ai.google.dev/edge/mediapipe) (on-device) removes the background and finds the face, eyes, mouth, shoulders and wrists.
 - The photo is turned into a grid of characters: bright areas get dense characters (`<` `>`), mid-tones get `-`, shadows get `.`.
 - Each orange detail is matched to a feature from your text ("add glasses", "orange dot on my t-shirt", "watch") and drawn in orange characters at the right spot.
-- Export as PNG, SVG, plain text or an MP4 video of the animation (1080×1920, ready for Instagram stories).
+- Export as PNG, SVG, an MP4 video of the animation (1080×1920, ready for Instagram stories), or copy it to the clipboard in a form that keeps its shape in chats.
 
 ## Supported details
 
